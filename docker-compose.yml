@@ -1,0 +1,49 @@
+name: supascale
+
+services:
+  panel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: supascale-panel
+    restart: unless-stopped
+    ports:
+      - "3333:3000"
+    environment:
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production}
+      DATA_DIR: /app/data
+      PROJECTS_ROOT: /app/data/projects
+      NODE_EXPORTER_URL: http://node_exporter:9100/metrics
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - supascale-data:/app/data
+    networks:
+      - internal
+      - traefik
+
+  node_exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: supascale-node-exporter
+    restart: unless-stopped
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik_net}
+
+volumes:
+  supascale-data:
