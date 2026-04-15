@@ -1,3 +1,5 @@
+import fs from "fs/promises";
+import { existsSync } from "fs";
 import { nanoid } from "nanoid";
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
@@ -208,4 +210,38 @@ export async function stopProject(slug: string) {
     .where(eq(schema.projects.slug, slug))
     .run();
   return down;
+}
+
+/**
+ * Stops containers, deletes the project directory under PROJECTS_ROOT, and removes DB rows.
+ */
+export async function deleteProject(slug: string) {
+  const project = getProjectBySlug(slug);
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  const dir = getProjectDir(slug);
+  if (existsSync(dir)) {
+    const down = await dockerCompose(dir, ["down", "--remove-orphans"]);
+    if (down.code !== 0) {
+      throw new Error(composeFailureMessage(down));
+    }
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+
+  const db = getDb();
+  db.delete(schema.tasks).where(eq(schema.tasks.projectId, project.id)).run();
+  db.delete(schema.backups).where(eq(schema.backups.projectId, project.id)).run();
+  db.delete(schema.projects).where(eq(schema.projects.id, project.id)).run();
+
+  db.insert(schema.auditLogs)
+    .values({
+      id: nanoid(),
+      action: "project.delete",
+      detail: JSON.stringify({ slug: project.slug, name: project.name }),
+      userId: null,
+      createdAt: new Date(),
+    })
+    .run();
 }

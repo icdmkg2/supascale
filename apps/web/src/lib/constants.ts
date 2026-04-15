@@ -10,5 +10,6 @@ export const NAV = [
   { href: "/domains", label: "Domains", icon: "Globe" as const },
   { href: "/logs", label: "Logs", icon: "ScrollText" as const },
   { href: "/resources", label: "Resources", icon: "Activity" as const },
+  { href: "/security", label: "Security", icon: "Shield" as const, alertDot: true as const },
   { href: "/settings", label: "Settings", icon: "Settings" as const },
 ] as const;

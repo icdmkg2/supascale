@@ -1,11 +1,27 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/guard";
-import { updateProjectRouting } from "@/server/projects/service";
+import { deleteProject, updateProjectRouting } from "@/server/projects/service";
 
 export const runtime = "nodejs";
 
 type Params = { slug: string };
+
+export async function DELETE(_request: Request, context: { params: Promise<Params> }) {
+  const session = await requireSession();
+  if (session instanceof Response) return session;
+  const { slug } = await context.params;
+  try {
+    await deleteProject(slug);
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Delete failed";
+    if (msg === "Project not found") {
+      return NextResponse.json({ error: msg }, { status: 404 });
+    }
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
 
 const patchSchema = z.object({
   kongHost: z.string().min(1),

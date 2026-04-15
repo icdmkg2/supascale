@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Activity,
+  Boxes,
   Cloud,
   DatabaseBackup,
   FolderKanban,
@@ -13,6 +14,7 @@ import {
   LogOut,
   ScrollText,
   Settings,
+  Shield,
 } from "lucide-react";
 import { APP_NAME, APP_VERSION, NAV } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -27,6 +29,7 @@ const icons = {
   Globe,
   ScrollText,
   Activity,
+  Shield,
   Settings,
 } as const;
 
@@ -36,7 +39,12 @@ export function AppSidebar() {
   return (
     <aside className="flex h-full min-h-0 w-full shrink-0 flex-col border-b border-border bg-sidebar text-sidebar-foreground md:w-[240px] md:border-b-0 md:border-r">
       <div className="shrink-0 border-b border-sidebar-border px-4 py-5">
-        <div className="text-lg font-semibold tracking-tight text-foreground">{APP_NAME}</div>
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
+            <Boxes className="size-4" aria-hidden />
+          </span>
+          <div className="text-lg font-semibold tracking-tight text-foreground">{APP_NAME}</div>
+        </div>
         <div className="mt-1 text-xs text-primary">
           v{APP_VERSION} · {new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" })}
         </div>
@@ -52,6 +60,7 @@ export function AppSidebar() {
             item.href === "/"
               ? pathname === "/"
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const showDot = "alertDot" in item && item.alertDot;
           return (
             <Link
               key={item.href}
@@ -64,7 +73,12 @@ export function AppSidebar() {
               )}
             >
               <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
-              {item.label}
+              <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                {item.label}
+                {showDot ? (
+                  <span className="size-2 shrink-0 rounded-full bg-red-500 shadow-[0_0_0_2px_var(--sidebar)]" title="Action suggested" />
+                ) : null}
+              </span>
             </Link>
           );
         })}
