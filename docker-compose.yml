@@ -14,6 +14,8 @@ services:
       HOSTNAME: 0.0.0.0
       PORT: 3000
       SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production}
+      # Set "true" when users only use HTTPS; leave unset for http:// IP:port
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-}
       DATA_DIR: /app/data
       PROJECTS_ROOT: /app/data/projects
       NODE_EXPORTER_URL: http://node_exporter:9100/metrics

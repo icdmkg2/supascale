@@ -41,12 +41,19 @@ export async function getSession(): Promise<SessionPayload | null> {
   return verifySessionToken(raw);
 }
 
+/** Browsers ignore Secure cookies on http:// — default false so self-hosted HTTP (IP:port) works. Set SESSION_COOKIE_SECURE=true when the app is only served over HTTPS. */
+function sessionCookieSecure() {
+  if (process.env.SESSION_COOKIE_SECURE === "true") return true;
+  if (process.env.SESSION_COOKIE_SECURE === "false") return false;
+  return false;
+}
+
 export async function setSessionCookie(token: string) {
   const jar = await cookies();
   jar.set(COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: sessionCookieSecure(),
     path: "/",
     maxAge: 60 * 60 * 24 * 7,
   });
@@ -54,7 +61,13 @@ export async function setSessionCookie(token: string) {
 
 export async function clearSessionCookie() {
   const jar = await cookies();
-  jar.set(COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
+  jar.set(COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: sessionCookieSecure(),
+    path: "/",
+    maxAge: 0,
+  });
 }
 
 export { COOKIE };

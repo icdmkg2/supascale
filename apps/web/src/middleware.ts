@@ -23,17 +23,33 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith("/api")) {
     return NextResponse.next();
   }
+
+  const token = request.cookies.get(SESSION_COOKIE)?.value;
+  let sessionOk = false;
+  if (token) {
+    try {
+      await jwtVerify(token, getSecret());
+      sessionOk = true;
+    } catch {
+      sessionOk = false;
+    }
+  }
+
+  if (pathname === "/setup" && sessionOk) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+  if (pathname === "/login" && sessionOk) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
   if (publicPaths.has(pathname)) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get(SESSION_COOKIE)?.value;
   if (!token) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
-  try {
-    await jwtVerify(token, getSecret());
-  } catch {
+  if (!sessionOk) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
   return NextResponse.next();

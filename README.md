@@ -57,6 +57,7 @@ The panel must reach the host Docker daemon (`/var/run/docker.sock`). The includ
 | ------------------- | ------------------------------------------------------- |
 | `HOSTNAME` / `PORT` | Next standalone: bind address and port (`HOSTNAME=0.0.0.0` in Compose overrides Docker’s container-id hostname). |
 | `SESSION_SECRET`    | Signing key for sessions + at-rest secret encryption    |
+| `SESSION_COOKIE_SECURE` | Set `true` if users only access the panel over **HTTPS** (e.g. behind Traefik with TLS). Default is off so **http://** (IP:port) logins work — the session cookie uses the `Secure` flag only when this is `true`. |
 | `DATA_DIR`          | SQLite and local state (default `/app/data` in compose) |
 | `PROJECTS_ROOT`     | Generated Supabase project directories                  |
 | `NODE_EXPORTER_URL` | Prometheus scrape URL for Resources                     |
@@ -72,6 +73,22 @@ npm run dev
 ```
 
 SQLite + migrations live under `apps/web/data/` by default.
+
+## Uninstall (remove containers, image, and panel data)
+
+From the directory that contains `docker-compose.yml` (e.g. `~/supascale`):
+
+```bash
+docker compose down -v --rmi local
+```
+
+This stops and removes the **supascale** stack, deletes the **named volume** (SQLite DB and `/app/data` including generated project metadata), and removes the **locally built image** for this compose project. **Project files** you generated under `PROJECTS_ROOT` on the host are only removed if they lived inside that volume; if you overrode `PROJECTS_ROOT` to a host bind mount, delete that folder manually if needed.
+
+To also remove the external Traefik network (only if nothing else is attached to it):
+
+```bash
+docker network rm traefik_net
+```
 
 ## License
 
