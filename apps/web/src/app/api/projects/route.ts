@@ -18,6 +18,8 @@ const createSchema = z.object({
   kongHost: z.string().min(1),
   studioHost: z.string().optional().nullable(),
   tls: z.boolean().optional().default(false),
+  /** UI wizard toggles (recorded in audit log; compose is still full upstream bundle today) */
+  servicePreferences: z.record(z.string(), z.boolean()).optional(),
 });
 
 export async function POST(request: Request) {
@@ -40,6 +42,7 @@ export async function POST(request: Request) {
       kongHost: parsed.data.kongHost,
       studioHost: parsed.data.studioHost ?? null,
       tls: parsed.data.tls,
+      servicePreferences: parsed.data.servicePreferences,
     });
     return NextResponse.json(result);
   } catch (e) {

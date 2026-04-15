@@ -46,6 +46,7 @@ export async function createProject(input: {
   kongHost: string;
   studioHost?: string | null;
   tls: boolean;
+  servicePreferences?: Record<string, boolean>;
 }) {
   assertValidSlug(input.slug);
   const id = nanoid();
@@ -104,7 +105,12 @@ export async function createProject(input: {
       .values({
         id: nanoid(),
         action: "project.create",
-        detail: JSON.stringify({ slug: input.slug, exit: up.code, log: up.stderr || up.stdout }),
+        detail: JSON.stringify({
+          slug: input.slug,
+          exit: up.code,
+          log: up.stderr || up.stdout,
+          servicePreferences: input.servicePreferences,
+        }),
         userId: null,
         createdAt: new Date(),
       })
