@@ -1,22 +1,38 @@
 "use client";
 
 import * as React from "react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 type ProjectRow = {
   id: string;
   slug: string;
   name: string;
   status: string;
+  lastError: string | null;
   kongHost: string | null;
   studioHost: string | null;
   tlsEnabled: boolean;
 };
+
+function statusClass(status: string) {
+  switch (status) {
+    case "running":
+      return "text-emerald-400";
+    case "error":
+      return "text-destructive";
+    case "provisioning":
+      return "text-amber-400";
+    default:
+      return "text-muted-foreground";
+  }
+}
 
 export function ProjectsPanel() {
   const [rows, setRows] = React.useState<ProjectRow[]>([]);
@@ -60,6 +76,18 @@ export function ProjectsPanel() {
         const j = (await res.json().catch(() => null)) as { error?: unknown };
         setError(typeof j?.error === "string" ? j.error : "Create failed");
         return;
+      }
+      const created = (await res.json()) as {
+        status: string;
+        lastError?: string | null;
+        logs?: string;
+      };
+      if (created.status === "error") {
+        setError(
+          "The stack was saved but docker compose failed to start it. See “Last error” under this project in the table below.",
+        );
+      } else {
+        setError(null);
       }
       setName("");
       setSlug("");
@@ -128,7 +156,11 @@ export function ProjectsPanel() {
               <Switch id="tls" checked={tls} onCheckedChange={setTls} />
               <Label htmlFor="tls">Use TLS entrypoint + cert resolver (from Settings)</Label>
             </div>
-            {error ? <p className="text-sm text-destructive md:col-span-2">{error}</p> : null}
+            {error ? (
+              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive md:col-span-2">
+                {error}
+              </div>
+            ) : null}
             <div className="md:col-span-2">
               <Button type="submit" disabled={busy}>
                 {busy ? "Provisioning…" : "Create stack"}
@@ -156,20 +188,44 @@ export function ProjectsPanel() {
             </TableHeader>
             <TableBody>
               {rows.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-medium">{p.name}</TableCell>
-                  <TableCell className="font-mono text-xs">{p.slug}</TableCell>
-                  <TableCell>{p.status}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{p.kongHost}</TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button type="button" size="sm" variant="secondary" onClick={() => start(p.slug)}>
-                      Start
-                    </Button>
-                    <Button type="button" size="sm" variant="outline" onClick={() => stop(p.slug)}>
-                      Stop
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                <React.Fragment key={p.id}>
+                  <TableRow>
+                    <TableCell className="font-medium">{p.name}</TableCell>
+                    <TableCell className="font-mono text-xs">{p.slug}</TableCell>
+                    <TableCell className={cn("font-medium capitalize", statusClass(p.status))}>
+                      {p.status}
+                    </TableCell>
+                    <TableCell className="text-xs text-foreground/85">{p.kongHost}</TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button type="button" size="sm" variant="secondary" onClick={() => start(p.slug)}>
+                        Start
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => stop(p.slug)}>
+                        Stop
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                  {p.lastError ? (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell colSpan={5} className="border-t-0 pt-0">
+                        <div className="rounded-md border border-destructive/35 bg-destructive/5 p-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-xs font-medium text-destructive">Last error</p>
+                            <Link
+                              href={`/logs?slug=${encodeURIComponent(p.slug)}`}
+                              className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto min-h-0 p-0 text-xs")}
+                            >
+                              Open compose logs
+                            </Link>
+                          </div>
+                          <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-xs text-muted-foreground">
+                            {p.lastError}
+                          </pre>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                </React.Fragment>
               ))}
               {rows.length === 0 ? (
                 <TableRow>

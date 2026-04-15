@@ -21,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} h-full dark`} suppressHydrationWarning>
-      <body className="min-h-full font-sans">
+      <body className="min-h-[100dvh] font-sans antialiased">
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

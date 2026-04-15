@@ -4,11 +4,25 @@ import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { writeSupabaseStack, writeTraefikComposeFile } from "@/server/supabase/bootstrap";
 import { resolveTraefikSettings } from "@/server/settings/traefik";
-import { dockerCompose } from "@/server/docker/compose";
+import { dockerCompose, type ComposeResult } from "@/server/docker/compose";
 import { getProjectDir } from "@/server/paths";
 import { patchProjectEnv } from "@/server/projects/routing";
 
 const slugRe = /^[a-z][a-z0-9-]{1,62}$/;
+
+const MAX_LAST_ERROR = 16_000;
+
+function clipError(msg: string): string {
+  const t = msg.trim();
+  if (!t) return "(no output)";
+  if (t.length <= MAX_LAST_ERROR) return t;
+  return `${t.slice(0, MAX_LAST_ERROR)}\n…(truncated)`;
+}
+
+function composeFailureMessage(up: ComposeResult): string {
+  const raw = [up.stderr, up.stdout].filter(Boolean).join("\n").trim();
+  return raw ? clipError(raw) : clipError(`docker compose exited with code ${up.code}`);
+}
 
 export function assertValidSlug(slug: string) {
   if (!slugRe.test(slug)) {
@@ -75,9 +89,14 @@ export async function createProject(input: {
 
     const up = await dockerCompose(composeDir, ["up", "-d", "--remove-orphans"]);
     const status = up.code === 0 ? "running" : "error";
+    const lastError = up.code === 0 ? null : composeFailureMessage(up);
 
     db.update(schema.projects)
-      .set({ status, updatedAt: new Date() })
+      .set({
+        status,
+        lastError,
+        updatedAt: new Date(),
+      })
       .where(eq(schema.projects.id, id))
       .run();
 
@@ -91,10 +110,16 @@ export async function createProject(input: {
       })
       .run();
 
-    return { id, status, logs: up.stdout + up.stderr };
+    return {
+      id,
+      status,
+      logs: up.stdout + up.stderr,
+      lastError,
+    };
   } catch (e) {
+    const errText = clipError(e instanceof Error ? e.message : String(e));
     db.update(schema.projects)
-      .set({ status: "error", updatedAt: new Date() })
+      .set({ status: "error", lastError: errText, updatedAt: new Date() })
       .where(eq(schema.projects.id, id))
       .run();
     throw e;
@@ -105,8 +130,13 @@ export async function startProject(slug: string) {
   const dir = getProjectDir(slug);
   const up = await dockerCompose(dir, ["up", "-d", "--remove-orphans"]);
   const db = getDb();
+  const ok = up.code === 0;
   db.update(schema.projects)
-    .set({ status: up.code === 0 ? "running" : "error", updatedAt: new Date() })
+    .set({
+      status: ok ? "running" : "error",
+      lastError: ok ? null : composeFailureMessage(up),
+      updatedAt: new Date(),
+    })
     .where(eq(schema.projects.slug, slug))
     .run();
   return up;
@@ -142,12 +172,14 @@ export async function updateProjectRouting(
   const up = await dockerCompose(dir, ["up", "-d", "--remove-orphans"]);
 
   const db = getDb();
+  const ok = up.code === 0;
   db.update(schema.projects)
     .set({
       kongHost: input.kongHost,
       studioHost: input.studioHost ?? null,
       tlsEnabled: input.tls,
-      status: up.code === 0 ? "running" : "error",
+      status: ok ? "running" : "error",
+      lastError: ok ? null : composeFailureMessage(up),
       updatedAt: new Date(),
     })
     .where(eq(schema.projects.slug, slug))
@@ -160,8 +192,13 @@ export async function stopProject(slug: string) {
   const dir = getProjectDir(slug);
   const down = await dockerCompose(dir, ["down"]);
   const db = getDb();
+  const ok = down.code === 0;
   db.update(schema.projects)
-    .set({ status: down.code === 0 ? "stopped" : "error", updatedAt: new Date() })
+    .set({
+      status: ok ? "stopped" : "error",
+      lastError: ok ? null : composeFailureMessage(down),
+      updatedAt: new Date(),
+    })
     .where(eq(schema.projects.slug, slug))
     .run();
   return down;

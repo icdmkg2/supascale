@@ -18,6 +18,8 @@ export const projects = sqliteTable("projects", {
   name: text("name").notNull(),
   composeDir: text("compose_dir").notNull(),
   status: text("status").notNull().default("stopped"),
+  /** docker compose stderr/stdout or exception message when status is error */
+  lastError: text("last_error"),
   kongHost: text("kong_host"),
   studioHost: text("studio_host"),
   tlsEnabled: integer("tls_enabled", { mode: "boolean" }).notNull().default(true),

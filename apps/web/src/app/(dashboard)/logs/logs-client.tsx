@@ -8,23 +8,26 @@ import { Label } from "@/components/ui/label";
 
 type ProjectRow = { id: string; slug: string; name: string };
 
-export function LogsClient() {
+export function LogsClient({ initialSlug }: { initialSlug?: string }) {
   const [projects, setProjects] = React.useState<ProjectRow[]>([]);
-  const [slug, setSlug] = React.useState("");
+  const [slug, setSlug] = React.useState(initialSlug ?? "");
   const [service, setService] = React.useState("kong");
   const [logs, setLogs] = React.useState("");
 
-  async function loadProjects() {
-    const res = await fetch("/api/projects", { credentials: "include" });
-    if (!res.ok) return;
-    const data = (await res.json()) as { projects: ProjectRow[] };
-    setProjects(data.projects);
-    if (!slug && data.projects[0]) setSlug(data.projects[0].slug);
-  }
-
   React.useEffect(() => {
+    async function loadProjects() {
+      const res = await fetch("/api/projects", { credentials: "include" });
+      if (!res.ok) return;
+      const data = (await res.json()) as { projects: ProjectRow[] };
+      setProjects(data.projects);
+      setSlug((prev) => {
+        if (initialSlug && data.projects.some((p) => p.slug === initialSlug)) return initialSlug;
+        if (prev && data.projects.some((p) => p.slug === prev)) return prev;
+        return data.projects[0]?.slug ?? "";
+      });
+    }
     void loadProjects();
-  }, []);
+  }, [initialSlug]);
 
   async function fetchLogs() {
     const qs = new URLSearchParams();
