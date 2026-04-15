@@ -10,6 +10,9 @@ services:
     ports:
       - "3333:3000"
     environment:
+      # Override Docker's default HOSTNAME (container ID) so Next listens on all interfaces.
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
       SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production}
       DATA_DIR: /app/data
       PROJECTS_ROOT: /app/data/projects
