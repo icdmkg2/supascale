@@ -11,6 +11,41 @@ async function fetchText(url: string) {
   return res.text();
 }
 
+/** Paths under `docker/` on the Supabase repo — must exist as real files or Docker creates empty dirs and Postgres fails. */
+const UPSTREAM_VOLUME_FILES = [
+  "volumes/db/realtime.sql",
+  "volumes/db/webhooks.sql",
+  "volumes/db/roles.sql",
+  "volumes/db/jwt.sql",
+  "volumes/db/_supabase.sql",
+  "volumes/db/logs.sql",
+  "volumes/db/pooler.sql",
+  "volumes/logs/vector.yml",
+  "volumes/pooler/pooler.exs",
+] as const;
+
+async function writeProjectTextFile(projectRoot: string, relativePath: string, content: string) {
+  const full = path.join(projectRoot, relativePath);
+  try {
+    const st = await fs.stat(full);
+    if (st.isDirectory()) await fs.rm(full, { recursive: true });
+  } catch (e) {
+    const err = e as NodeJS.ErrnoException;
+    if (err.code !== "ENOENT") throw e;
+  }
+  await fs.mkdir(path.dirname(full), { recursive: true });
+  await fs.writeFile(full, content, "utf8");
+}
+
+async function fetchUpstreamVolumeFiles(projectRoot: string) {
+  await Promise.all(
+    UPSTREAM_VOLUME_FILES.map(async (rel) => {
+      const text = await fetchText(`${RAW_BASE}/${rel}`);
+      await writeProjectTextFile(projectRoot, rel, text);
+    }),
+  );
+}
+
 function randomSecret(bytes = 32) {
   return crypto.randomBytes(bytes).toString("base64url");
 }
@@ -160,10 +195,19 @@ export async function writeSupabaseStack(opts: { slug: string; kongHost: string;
   await fs.writeFile(path.join(dir, "volumes", "api", "kong.yml"), kongYml, "utf8");
   await fs.writeFile(path.join(dir, "volumes", "api", "kong-entrypoint.sh"), kongEntry, "utf8");
 
-  const volDirs = ["volumes/db/data", "volumes/storage", "volumes/functions", "volumes/logs"];
+  const volDirs = [
+    "volumes/db/data",
+    "volumes/storage",
+    "volumes/functions",
+    "volumes/logs",
+    "volumes/snippets",
+    "volumes/pooler",
+  ];
   for (const v of volDirs) {
     await fs.mkdir(path.join(dir, v), { recursive: true });
   }
+
+  await fetchUpstreamVolumeFiles(dir);
 
   return { dir };
 }
