@@ -11,6 +11,8 @@ const keys = [
   "traefik_entrypoint_websecure",
   "traefik_cert_resolver",
   "projects_root",
+  /** "true" | "false" — poll compose logs in the new-project wizard during deploy */
+  "deploy_debug_logs",
 ] as const;
 
 export async function GET() {
@@ -28,6 +30,7 @@ const postSchema = z.object({
   traefik_entrypoint: z.string().optional(),
   traefik_entrypoint_websecure: z.string().optional(),
   traefik_cert_resolver: z.string().optional().nullable(),
+  deploy_debug_logs: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -47,8 +50,10 @@ export async function POST(request: Request) {
     if (v === undefined) continue;
     if (v === null) {
       setSetting(k, "");
+    } else if (k === "deploy_debug_logs" && typeof v === "boolean") {
+      setSetting("deploy_debug_logs", v ? "true" : "false");
     } else {
-      setSetting(k, v);
+      setSetting(k, v as string);
     }
   }
   return NextResponse.json({ ok: true });

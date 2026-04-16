@@ -174,8 +174,11 @@ export function ProjectCreateWizard({
   const [composeWarning, setComposeWarning] = React.useState<string | null>(null);
   const [formError, setFormError] = React.useState<string | null>(null);
   const [deployLabel, setDeployLabel] = React.useState("");
+  const [deployDebugLogs, setDeployDebugLogs] = React.useState(false);
+  const [liveLogs, setLiveLogs] = React.useState("");
 
   const tickRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const logPollRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
   const resetWizard = React.useCallback(() => {
     setStep("services");
@@ -191,17 +194,34 @@ export function ProjectCreateWizard({
     setComposeWarning(null);
     setFormError(null);
     setDeployLabel("");
+    setLiveLogs("");
     if (tickRef.current) {
       clearInterval(tickRef.current);
       tickRef.current = null;
+    }
+    if (logPollRef.current) {
+      clearInterval(logPollRef.current);
+      logPollRef.current = null;
     }
   }, []);
 
   React.useEffect(() => {
     return () => {
       if (tickRef.current) clearInterval(tickRef.current);
+      if (logPollRef.current) clearInterval(logPollRef.current);
     };
   }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    void (async () => {
+      const res = await fetch("/api/settings", { credentials: "include" });
+      if (!res.ok) return;
+      const data = (await res.json()) as { settings: Record<string, string | null> };
+      const d = data.settings.deploy_debug_logs;
+      setDeployDebugLogs(d === "true" || d === "1");
+    })();
+  }, [open]);
 
   React.useEffect(() => {
     if (!open) {
@@ -249,6 +269,34 @@ export function ProjectCreateWizard({
     }, 900);
 
     const servicePreferences = { ...selection };
+    const slugForLogs = slug.trim().toLowerCase();
+
+    const pollComposeLogs = async () => {
+      try {
+        const r = await fetch(`/api/projects/${encodeURIComponent(slugForLogs)}/logs`, {
+          credentials: "include",
+        });
+        if (r.ok) {
+          const j = (await r.json()) as { logs?: string };
+          setLiveLogs(j.logs ?? "");
+          return;
+        }
+        const errBody = (await r.json().catch(() => null)) as { error?: unknown } | null;
+        const msg =
+          typeof errBody?.error === "string"
+            ? errBody.error
+            : `HTTP ${r.status} (compose dir may not exist until bootstrap finishes)`;
+        setLiveLogs(`[logs not available yet]\n${msg}`);
+      } catch (e) {
+        setLiveLogs(e instanceof Error ? e.message : "Log poll failed");
+      }
+    };
+
+    if (deployDebugLogs) {
+      setLiveLogs("Polling docker compose logs (enable in Settings → Developer). First lines may error until the stack exists.\n\n");
+      void pollComposeLogs();
+      logPollRef.current = setInterval(() => void pollComposeLogs(), 2500);
+    }
 
     try {
       const res = await fetch("/api/projects", {
@@ -257,7 +305,7 @@ export function ProjectCreateWizard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          slug: slug.trim().toLowerCase(),
+          slug: slugForLogs,
           kongHost: kongHost.trim(),
           studioHost: studioHost.trim() || null,
           tls,
@@ -268,6 +316,13 @@ export function ProjectCreateWizard({
       if (tickRef.current) {
         clearInterval(tickRef.current);
         tickRef.current = null;
+      }
+      if (logPollRef.current) {
+        clearInterval(logPollRef.current);
+        logPollRef.current = null;
+      }
+      if (deployDebugLogs) {
+        void pollComposeLogs();
       }
 
       if (!res.ok) {
@@ -305,6 +360,10 @@ export function ProjectCreateWizard({
       if (tickRef.current) {
         clearInterval(tickRef.current);
         tickRef.current = null;
+      }
+      if (logPollRef.current) {
+        clearInterval(logPollRef.current);
+        logPollRef.current = null;
       }
       setDeployPhase("error");
       setDeployError(e instanceof Error ? e.message : "Request failed");
@@ -660,6 +719,18 @@ export function ProjectCreateWizard({
                       role="alert"
                     >
                       {deployError}
+                    </div>
+                  ) : null}
+
+                  {deployDebugLogs && (deployPhase === "running" || deployPhase === "error") ? (
+                    <div className="mt-6 rounded-lg border border-border bg-muted/30">
+                      <p className="border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground">
+                        Docker compose logs{" "}
+                        <span className="text-amber-500/90">(debug — Settings → Developer)</span>
+                      </p>
+                      <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words px-3 py-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+                        {liveLogs || "—"}
+                      </pre>
                     </div>
                   ) : null}
 

@@ -23,17 +23,16 @@ Run these commands from the **repository root** (the folder that contains `docke
 docker network create traefik_net
 ```
 
-2. Set a strong `SESSION_SECRET` (for example in a `.env` file next to `docker-compose.yml`, or export it in your shell).
-
-3. Build and start:
+1. Set a strong `SESSION_SECRET` (for example in a `.env` file next to `docker-compose.yml`, or export it in your shell).
+2. Build and start:
 
 ```bash
 docker compose up -d --build
 ```
 
-4. Open `http://<server-ip>:3333` (or `http://localhost:3333` on the machine itself), complete `/setup`, then create projects.
+1. Open `http://<server-ip>:3333` (or `http://localhost:3333` on the machine itself), complete `/setup`, then create projects.
 
-The app uses Next.js **standalone**, which binds to `process.env.HOSTNAME` (default `0.0.0.0`). Docker normally sets `HOSTNAME` to the container ID, which would break external access — Compose sets **`HOSTNAME=0.0.0.0`** explicitly. Port **3333** is published on the host; open **TCP 3333** in your cloud security list / `ufw` so clients can reach `http://<public-ip>:3333`.
+The app uses Next.js **standalone**, which binds to `process.env.HOSTNAME` (default `0.0.0.0`). Docker normally sets `HOSTNAME` to the container ID, which would break external access — Compose sets `**HOSTNAME=0.0.0.0`** explicitly. Port **3333** is published on the host; open **TCP 3333** in your cloud security list / `ufw` so clients can reach `http://<public-ip>:3333`.
 
 ### Docker socket
 
@@ -53,15 +52,15 @@ The panel must reach the host Docker daemon (`/var/run/docker.sock`). The includ
 ## Configuration
 
 
-| Env                 | Purpose                                                 |
-| ------------------- | ------------------------------------------------------- |
-| `HOSTNAME` / `PORT` | Next standalone: bind address and port (`HOSTNAME=0.0.0.0` in Compose overrides Docker’s container-id hostname). |
-| `SESSION_SECRET`    | Signing key for sessions + at-rest secret encryption    |
+| Env                     | Purpose                                                                                                                                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `HOSTNAME` / `PORT`     | Next standalone: bind address and port (`HOSTNAME=0.0.0.0` in Compose overrides Docker’s container-id hostname).                                                                                                   |
+| `SESSION_SECRET`        | Signing key for sessions + at-rest secret encryption                                                                                                                                                               |
 | `SESSION_COOKIE_SECURE` | Set `true` if users only access the panel over **HTTPS** (e.g. behind Traefik with TLS). Default is off so **http://** (IP:port) logins work — the session cookie uses the `Secure` flag only when this is `true`. |
-| `DATA_DIR`          | SQLite and local state (default `/app/data` in compose) |
-| `PROJECTS_ROOT`     | Generated Supabase project directories                  |
-| `NODE_EXPORTER_URL` | Prometheus scrape URL for Resources                     |
-| `TRAEFIK_NETWORK`   | External network name used by `docker-compose.yml`      |
+| `DATA_DIR`              | SQLite and local state (default `/app/data` in compose)                                                                                                                                                            |
+| `PROJECTS_ROOT`         | Generated Supabase project directories                                                                                                                                                                             |
+| `NODE_EXPORTER_URL`     | Prometheus scrape URL for Resources                                                                                                                                                                                |
+| `TRAEFIK_NETWORK`       | External network name used by `docker-compose.yml`                                                                                                                                                                 |
 
 
 ## Development
