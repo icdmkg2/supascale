@@ -26,10 +26,14 @@ export async function dockerCompose(
 ): Promise<ComposeResult> {
   const yml = path.join(projectDir, "docker-compose.yml");
   const traefik = path.join(projectDir, "docker-compose.traefik.yml");
+  const supascale = path.join(projectDir, "docker-compose.supascale.yml");
   const fs = await import("fs");
   const files = [yml];
   if (fs.existsSync(traefik)) {
     files.push(traefik);
+  }
+  if (fs.existsSync(supascale)) {
+    files.push(supascale);
   }
   const args = ["compose", ...files.flatMap((f) => ["-f", f]), ...composeArgs];
   return run("docker", args, projectDir);
