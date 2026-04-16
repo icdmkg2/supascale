@@ -15,6 +15,7 @@ import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProjectCreateWizard } from "@/app/(dashboard)/projects/project-create-wizard";
+import { APP_VERSION } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 type ProjectRow = {
@@ -94,7 +95,7 @@ export function DashboardShell({
     <>
       <AppShell
         title="Dashboard"
-        subtitle="Overview of your Supabase instances."
+        subtitle={`Overview of your Supabase instances · v${APP_VERSION}`}
         showBreadcrumb={false}
         headerActions={
           <Button

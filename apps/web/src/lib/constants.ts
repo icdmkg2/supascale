@@ -1,5 +1,5 @@
 export const APP_NAME = "SupaScale";
-export const APP_VERSION = "1.0.0";
+export const APP_VERSION = "1.1.0";
 
 export const NAV = [
   { href: "/", label: "Dashboard", icon: "LayoutDashboard" as const },
